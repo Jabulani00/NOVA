@@ -43,7 +43,7 @@
 
 /* ───────── Chat ───────── */
 let msgCount = 0;
-const GEMINI_API_KEY = 'AIzaSyAdnCrXlxgQoZFYKXoymTVsLpSNJB4Itfk';
+const GEMINI_API_KEY = 'AIzaSyCcUhVvmChrGmfdEdUQMf9S8U-lza3Y2TM';
 const SYSTEM = `You are NOVA Orbit — a warm, witty AI friend designed for South African matric (Grade 12) students. You help with:
 - Career guidance: Explain careers clearly, match careers to interests, discuss South African context (NSFAS, universities, bursaries, job markets).
 - Fun and curiosity: Tell jokes, share wild facts, explain complex ideas simply and entertainingly.
@@ -63,6 +63,24 @@ Tone behavior:
 
 const convHistory = [];
 let discoveredModels = null;
+let caoCourseData = "";
+
+async function loadCoursesData() {
+  try {
+    const response = await fetch('cao_courses_2027.json');
+    if (response.ok) {
+      const data = await response.json();
+      caoCourseData = JSON.stringify(data);
+      console.log("SUCCESS: cao_courses_2027 loaded into NOVA's memory!");
+    } else {
+      console.error("FAILED to load courses.json. Make sure you are using Live Server.");
+    }
+  } catch (error) {
+    console.error("Error reading JSON file:", error);
+  }
+}
+
+loadCoursesData();
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -136,9 +154,14 @@ async function callNova(userText) {
     });
   }
 
+  let finalSystemInstruction = SYSTEM;
+  if (caoCourseData !== "") {
+    finalSystemInstruction += `\n\nIMPORTANT CAO DATA:\nYou have access to the CAO handbook data. Use this exact JSON data to accurately answer any questions about university courses, minimum points, requirements, institutions, and closing dates:\n${caoCourseData}`;
+  }
+
   const payload = {
     systemInstruction: {
-      parts: [{ text: SYSTEM }]
+     parts: [{ text: finalSystemInstruction }]
     },
     contents,
     generationConfig: {
