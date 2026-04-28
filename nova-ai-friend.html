@@ -18,6 +18,7 @@
 <canvas id="stars-canvas"></canvas>
 
 <div class="wrapper">
+  <a class="play-game-btn" href="iq-quiz-game.html" aria-label="Play IQ Quiz Game">🧠 Play IQ Quiz</a>
 
   <!-- ── HEADER ── -->
   <header>
@@ -90,6 +91,26 @@
   </footer>
 
 </div><!-- /wrapper -->
+
+<!-- Name Modal -->
+<div id="name-modal" class="name-modal hidden" role="dialog" aria-modal="true" aria-labelledby="name-modal-title">
+  <div class="name-modal-card">
+    <h2 id="name-modal-title">Welcome to NOVA Orbit</h2>
+    <p>What should I call you? I will remember your name for future chats.</p>
+    <input id="name-input" type="text" maxlength="40" placeholder="Type your name..." />
+    <button id="save-name-btn" type="button">Start Chatting</button>
+  </div>
+</div>
+
+<!-- API Key Modal -->
+<div id="api-key-modal" class="name-modal hidden" role="dialog" aria-modal="true" aria-labelledby="api-key-modal-title">
+  <div class="name-modal-card">
+    <h2 id="api-key-modal-title">Connect OpenAI</h2>
+    <p>Enter your OpenAI API key. It is saved only in this browser.</p>
+    <input id="api-key-input" type="password" autocomplete="off" placeholder="sk-..." />
+    <button id="save-api-key-btn" type="button">Save API Key</button>
+  </div>
+</div>
 
 <script src="script.js"></script>
 </body>

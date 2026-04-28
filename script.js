@@ -43,7 +43,12 @@
 
 /* ───────── Chat ───────── */
 let msgCount = 0;
-const GEMINI_API_KEY = 'AIzaSyCcUhVvmChrGmfdEdUQMf9S8U-lza3Y2TM';
+const USER_NAME_KEY = 'nova_user_name';
+const CONVERSATION_KEY = 'nova_conversation_history_v1';
+const OPENAI_API_KEY_STORE = 'nova_openai_api_key';
+let userName = '';
+const OPENAI_MODEL = 'gpt-4o-mini';
+let openAiApiKey = '';
 const SYSTEM = `You are NOVA Orbit — a warm, witty AI friend designed for South African matric (Grade 12) students. You help with:
 - Career guidance: Explain careers clearly, match careers to interests, discuss South African context (NSFAS, universities, bursaries, job markets).
 - Fun and curiosity: Tell jokes, share wild facts, explain complex ideas simply and entertainingly.
@@ -58,19 +63,188 @@ Language behavior:
 Tone behavior:
 - Always talk like a real supportive friend.
 - Be encouraging, kind, and confident.
-- Keep replies concise (2-4 short paragraphs max), clear, and never robotic.
-- Use emojis occasionally, not excessively.`;
+- Keep replies concise (2-3 short paragraphs max), clear, and never robotic.
+- Sound like the user's hype friend: uplifting, energetic, and motivating.
+- Celebrate wins loudly, and turn mistakes into "we got this" moments.
+- Add quick humor naturally.
+- Use emojis occasionally, not excessively.
+- Use South African teen-friendly vibe when natural (without overdoing slang).
+
+Conversation style:
+- Start with energy (short hype line), then give the actual helpful answer.
+- End with a mini boost/challenge line (for example: "You've got this 💥").
+- If user feels stuck, break the answer into small easy steps.
+- Avoid long lectures or boring textbook tone.
+
+Safety and quality:
+- Never bully, shame, or use rude language.
+- If the user asks for serious/emotional help, stay warm and calm (less hype, more care).`;
 
 const convHistory = [];
-let discoveredModels = null;
-let caoCourseData = "";
+let caoCourseData = null;
+
+function saveConversationHistory() {
+  try {
+    const compact = convHistory
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      .slice(-60);
+    localStorage.setItem(CONVERSATION_KEY, JSON.stringify(compact));
+  } catch (_) {}
+}
+
+function loadConversationHistory() {
+  try {
+    const raw = localStorage.getItem(CONVERSATION_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      .slice(-60);
+  } catch (_) {
+    return [];
+  }
+}
+
+function hydrateConversationUI() {
+  const saved = loadConversationHistory();
+  if (!saved.length) return;
+
+  convHistory.length = 0;
+  convHistory.push(...saved);
+
+  const wrap = document.getElementById('chat-messages');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  for (const msg of saved) {
+    appendMsg(msg.content, msg.role === 'user');
+  }
+
+  msgCount = saved.filter(m => m.role === 'user').length;
+  const counter = document.getElementById('msg-count');
+  if (counter) counter.textContent = msgCount;
+}
+
+function sanitizeName(name) {
+  return name.replace(/[^\w\s'-]/g, '').trim().slice(0, 40);
+}
+
+function getUserInitials() {
+  const cleaned = sanitizeName(userName || '');
+  if (!cleaned) return 'U';
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function getSavedUserName() {
+  const saved = localStorage.getItem(USER_NAME_KEY) || '';
+  return sanitizeName(saved);
+}
+
+function getSavedApiKey() {
+  return (localStorage.getItem(OPENAI_API_KEY_STORE) || '').trim();
+}
+
+function setSavedApiKey(key) {
+  openAiApiKey = (key || '').trim();
+  localStorage.setItem(OPENAI_API_KEY_STORE, openAiApiKey);
+}
+
+function setSavedUserName(name) {
+  userName = sanitizeName(name);
+  localStorage.setItem(USER_NAME_KEY, userName);
+}
+
+function showNameModal() {
+  const modal = document.getElementById('name-modal');
+  const input = document.getElementById('name-input');
+  if (!modal || !input) return;
+  modal.classList.remove('hidden');
+  input.value = userName || '';
+  setTimeout(() => input.focus(), 0);
+}
+
+function hideNameModal() {
+  const modal = document.getElementById('name-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+}
+
+function initUserName() {
+  userName = getSavedUserName();
+  const saveBtn = document.getElementById('save-name-btn');
+  const input = document.getElementById('name-input');
+
+  const save = () => {
+    const entered = sanitizeName(input?.value || '');
+    if (!entered) {
+      input?.focus();
+      return;
+    }
+    setSavedUserName(entered);
+    hideNameModal();
+  };
+
+  saveBtn?.addEventListener('click', save);
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      save();
+    }
+  });
+
+  if (!userName) {
+    showNameModal();
+  }
+}
+
+function showApiKeyModal() {
+  const modal = document.getElementById('api-key-modal');
+  const input = document.getElementById('api-key-input');
+  if (!modal || !input) return;
+  modal.classList.remove('hidden');
+  input.value = openAiApiKey || '';
+  setTimeout(() => input.focus(), 0);
+}
+
+function hideApiKeyModal() {
+  document.getElementById('api-key-modal')?.classList.add('hidden');
+}
+
+function initApiKey() {
+  openAiApiKey = getSavedApiKey();
+  const saveBtn = document.getElementById('save-api-key-btn');
+  const input = document.getElementById('api-key-input');
+
+  const save = () => {
+    const value = (input?.value || '').trim();
+    if (!value.startsWith('sk-')) {
+      input?.focus();
+      return;
+    }
+    setSavedApiKey(value);
+    hideApiKeyModal();
+  };
+
+  saveBtn?.addEventListener('click', save);
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      save();
+    }
+  });
+
+  if (!openAiApiKey) showApiKeyModal();
+}
 
 async function loadCoursesData() {
   try {
     const response = await fetch('cao_courses_2027.json');
     if (response.ok) {
       const data = await response.json();
-      caoCourseData = JSON.stringify(data);
+      caoCourseData = data;
       console.log("SUCCESS: cao_courses_2027 loaded into NOVA's memory!");
     } else {
       console.error("FAILED to load courses.json. Make sure you are using Live Server.");
@@ -82,151 +256,116 @@ async function loadCoursesData() {
 
 loadCoursesData();
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function isCaoQuery(text) {
+  return /(cao|aps|points|university|requirements?|closing date|course|bursary|nsfas|application)/i.test(text);
 }
 
-async function listGeminiModels() {
-  if (Array.isArray(discoveredModels) && discoveredModels.length) {
-    return discoveredModels;
+function flattenCaoEntries(value, bucket, cap = 1200) {
+  if (bucket.length >= cap || value == null) return;
+
+  if (Array.isArray(value)) {
+    for (const item of value) flattenCaoEntries(item, bucket, cap);
+    return;
   }
 
-  const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
-  const resp = await fetch(listUrl);
-  if (!resp.ok) {
-    throw new Error(`Could not list Gemini models (${resp.status}).`);
+  if (typeof value === 'object') {
+    const normalized = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v == null) continue;
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+        normalized[k] = v;
+      }
+    }
+    if (Object.keys(normalized).length) bucket.push(normalized);
+    for (const v of Object.values(value)) flattenCaoEntries(v, bucket, cap);
   }
-
-  const data = await resp.json();
-  const models = (data.models || [])
-    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-    .map(m => (m.name || '').replace(/^models\//, ''))
-    .filter(Boolean);
-
-  if (!models.length) {
-    throw new Error('No Gemini models with generateContent support found for this key.');
-  }
-
-  const preferredOrder = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro'
-  ];
-
-  // Keep preferred models first, then include the rest.
-  const ranked = [
-    ...preferredOrder.filter(p => models.includes(p)),
-    ...models.filter(m => !preferredOrder.includes(m))
-  ];
-
-  discoveredModels = ranked;
-  return discoveredModels;
 }
 
-async function requestGemini(model, body) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
+function buildCaoContext(userText) {
+  if (!caoCourseData || !isCaoQuery(userText)) return '';
 
-  let data = null;
-  try {
-    data = await resp.json();
-  } catch (_) {
-    data = null;
-  }
+  const tokens = userText
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length > 2)
+    .slice(0, 8);
 
-  return { ok: resp.ok, status: resp.status, data };
+  const entries = [];
+  flattenCaoEntries(caoCourseData, entries);
+  if (!entries.length) return '';
+
+  const scored = entries
+    .map(entry => {
+      const hay = JSON.stringify(entry).toLowerCase();
+      const score = tokens.reduce((n, tk) => n + (hay.includes(tk) ? 1 : 0), 0);
+      return { entry, score };
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map(x => x.entry);
+
+  if (!scored.length) return '';
+  return `\n\nCAO reference snippets (use these first, and state if uncertain):\n${JSON.stringify(scored)}`;
 }
 
 async function callNova(userText) {
   convHistory.push({ role: 'user', content: userText });
-
-  const contents = [];
-  for (const msg of convHistory) {
-    contents.push({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    });
-  }
+  saveConversationHistory();
+  const recentHistory = convHistory.slice(-10);
 
   let finalSystemInstruction = SYSTEM;
-  if (caoCourseData !== "") {
-    finalSystemInstruction += `\n\nIMPORTANT CAO DATA:\nYou have access to the CAO handbook data. Use this exact JSON data to accurately answer any questions about university courses, minimum points, requirements, institutions, and closing dates:\n${caoCourseData}`;
+  if (userName) {
+    finalSystemInstruction += `\n\nUser name: ${userName}. Address the user by this name naturally sometimes, but do not overuse it.`;
   }
+  finalSystemInstruction += buildCaoContext(userText);
 
-  const payload = {
-    systemInstruction: {
-     parts: [{ text: finalSystemInstruction }]
+  const messages = [
+    { role: 'system', content: finalSystemInstruction },
+    ...recentHistory.map(msg => ({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content
+    }))
+  ];
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openAiApiKey}`
     },
-    contents,
-    generationConfig: {
-      temperature: 0.8,
-      topP: 0.9,
-      maxOutputTokens: 900
-    }
-  };
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages,
+      temperature: 0.9,
+      top_p: 0.9,
+      max_tokens: 320
+    })
+  });
 
-  const modelsToTry = await listGeminiModels();
-  let data = null;
-  let sawRateLimit = false;
-  let lastError = 'Unable to reach Gemini right now.';
-
-  for (const model of modelsToTry) {
-    let attempt = 0;
-    while (attempt < 3) {
-      const result = await requestGemini(model, payload);
-
-      if (result.ok) {
-        data = result.data;
-        break;
-      }
-
-      const apiMessage = result.data?.error?.message || '';
-
-      // 404/400 on model often means model unavailable for this key; try next model.
-      if (result.status === 404 || result.status === 400) {
-        lastError = apiMessage || `Model ${model} is unavailable for this API key.`;
-        break;
-      }
-
-      // 429 is usually quota/rate limit. Retry briefly, then fallback or fail with a clear message.
-      if (result.status === 429) {
-        sawRateLimit = true;
-        lastError = apiMessage || 'Rate limit reached.';
-        attempt += 1;
-        if (attempt < 3) {
-          await sleep(1200 * attempt);
-          continue;
-        }
-        break;
-      }
-
-      lastError = apiMessage || `Gemini request failed (${result.status}).`;
-      break;
-    }
-
-    if (data) break;
+  let data = {};
+  try {
+    data = await resp.json();
+  } catch (_) {
+    data = {};
   }
 
-  if (!data) {
-    if (sawRateLimit) {
-      throw new Error('NOVA is busy right now (API quota/rate limit hit). Please wait 30-60 seconds and try again.');
+  if (!resp.ok) {
+    if (resp.status === 429) {
+      throw new Error('NOVA is busy right now (API rate limit hit). Please wait 20-40 seconds and try again.');
     }
-    throw new Error(lastError);
+    if (resp.status === 401 || resp.status === 403) {
+      showApiKeyModal();
+      throw new Error('API key is invalid or blocked for this model.');
+    }
+    throw new Error(data?.error?.message || `OpenAI request failed (${resp.status}).`);
   }
 
-  const reply =
-    data.candidates?.[0]?.content?.parts
-      ?.map(p => p.text || '')
-      .join('')
-      .trim() || "Hmm, my brain glitched! Try again? 🤖";
+  const reply = data?.choices?.[0]?.message?.content?.trim() || "Hmm, my brain glitched! Try again? 🤖";
 
   convHistory.push({ role: 'assistant', content: reply });
+  saveConversationHistory();
   return reply;
 }
 
@@ -237,7 +376,7 @@ function appendMsg(text, isUser) {
 
   const av = document.createElement('div');
   av.className = isUser ? 'avatar avatar-user' : 'avatar avatar-nova';
-  av.textContent = isUser ? 'YOU' : 'N';
+  av.textContent = isUser ? getUserInitials() : 'N';
 
   const bub = document.createElement('div');
   bub.className = isUser ? 'bubble bubble-user' : 'bubble bubble-nova';
@@ -325,7 +464,10 @@ async function sendMessage() {
     }
   } catch(e) {
     removeTyping();
-    appendMsg(`Oops, I hit a connection/API issue: ${e.message} 🛸`, false);
+    const localFallback = isCaoQuery(text)
+      ? "I'm temporarily rate-limited by the API 😅. Ask me again in a few seconds, and include the exact course/university name so I can fetch it fast."
+      : "My cloud brain hit traffic 🚦. Try again in a few seconds, or ask a shorter question so I can reply quicker.";
+    appendMsg(`Oops, I hit a connection/API issue: ${e.message} 🛸\n\n${localFallback}`, false);
   }
   btn.disabled = false;
   input.focus();
@@ -341,3 +483,7 @@ document.getElementById('user-input').addEventListener('input', function(){
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
+
+initUserName();
+initApiKey();
+hydrateConversationUI();
