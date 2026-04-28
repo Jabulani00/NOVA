@@ -1,5 +1,5 @@
 {
-  "routes": [
-    { "src": "/", "dest": "/nova-ai-friend.html" }
+  "rewrites": [
+    { "source": "/", "destination": "/nova-ai-friend.html" }
   ]
 }

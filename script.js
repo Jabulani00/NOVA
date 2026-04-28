@@ -45,10 +45,8 @@
 let msgCount = 0;
 const USER_NAME_KEY = 'nova_user_name';
 const CONVERSATION_KEY = 'nova_conversation_history_v1';
-const OPENAI_API_KEY_STORE = 'nova_openai_api_key';
 let userName = '';
 const OPENAI_MODEL = 'gpt-4o-mini';
-let openAiApiKey = '';
 const SYSTEM = `You are NOVA Orbit — a warm, witty AI friend designed for South African matric (Grade 12) students. You help with:
 - Career guidance: Explain careers clearly, match careers to interests, discuss South African context (NSFAS, universities, bursaries, job markets).
 - Fun and curiosity: Tell jokes, share wild facts, explain complex ideas simply and entertainingly.
@@ -143,15 +141,6 @@ function getSavedUserName() {
   return sanitizeName(saved);
 }
 
-function getSavedApiKey() {
-  return (localStorage.getItem(OPENAI_API_KEY_STORE) || '').trim();
-}
-
-function setSavedApiKey(key) {
-  openAiApiKey = (key || '').trim();
-  localStorage.setItem(OPENAI_API_KEY_STORE, openAiApiKey);
-}
-
 function setSavedUserName(name) {
   userName = sanitizeName(name);
   localStorage.setItem(USER_NAME_KEY, userName);
@@ -198,45 +187,6 @@ function initUserName() {
   if (!userName) {
     showNameModal();
   }
-}
-
-function showApiKeyModal() {
-  const modal = document.getElementById('api-key-modal');
-  const input = document.getElementById('api-key-input');
-  if (!modal || !input) return;
-  modal.classList.remove('hidden');
-  input.value = openAiApiKey || '';
-  setTimeout(() => input.focus(), 0);
-}
-
-function hideApiKeyModal() {
-  document.getElementById('api-key-modal')?.classList.add('hidden');
-}
-
-function initApiKey() {
-  openAiApiKey = getSavedApiKey();
-  const saveBtn = document.getElementById('save-api-key-btn');
-  const input = document.getElementById('api-key-input');
-
-  const save = () => {
-    const value = (input?.value || '').trim();
-    if (!value.startsWith('sk-')) {
-      input?.focus();
-      return;
-    }
-    setSavedApiKey(value);
-    hideApiKeyModal();
-  };
-
-  saveBtn?.addEventListener('click', save);
-  input?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      save();
-    }
-  });
-
-  if (!openAiApiKey) showApiKeyModal();
 }
 
 async function loadCoursesData() {
@@ -329,18 +279,14 @@ async function callNova(userText) {
     }))
   ];
 
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+  const resp = await fetch('/api/chat', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${openAiApiKey}`
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
-      messages,
-      temperature: 0.9,
-      top_p: 0.9,
-      max_tokens: 320
+      messages
     })
   });
 
@@ -356,8 +302,7 @@ async function callNova(userText) {
       throw new Error('NOVA is busy right now (API rate limit hit). Please wait 20-40 seconds and try again.');
     }
     if (resp.status === 401 || resp.status === 403) {
-      showApiKeyModal();
-      throw new Error('API key is invalid or blocked for this model.');
+      throw new Error('Server OpenAI key is missing or invalid.');
     }
     throw new Error(data?.error?.message || `OpenAI request failed (${resp.status}).`);
   }
@@ -485,5 +430,4 @@ document.getElementById('user-input').addEventListener('input', function(){
 });
 
 initUserName();
-initApiKey();
 hydrateConversationUI();
