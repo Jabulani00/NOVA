@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NOVA Orbit – Your AI Matric Friend</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600&family=Space+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- Nebula backgrounds -->
+<div class="nebula nebula-1"></div>
+<div class="nebula nebula-2"></div>
+<div class="nebula nebula-3"></div>
+
+<!-- Starfield canvas -->
+<canvas id="stars-canvas"></canvas>
+
+<div class="wrapper">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="logo-ring">
+      <div class="logo-inner">N</div>
+    </div>
+    <h1>NOVA ORBIT</h1>
+    <p class="tagline">Your AI Friend for Matric Life</p>
+  </header>
+
+  <!-- ── PROMPT CHIPS ── -->
+  <p class="chips-label">Quick starts</p>
+  <div class="chips">
+    <span class="chip career" onclick="sendChip(this.textContent)">🎓 Which career fits my strengths?</span>
+    <span class="chip" onclick="sendChip(this.textContent)">🗣️ Ngicela ungikhulume isiZulu.</span>
+    <span class="chip" onclick="sendChip(this.textContent)">😂 Tell me something fun and smart</span>
+  </div>
+
+  <!-- ── CHAT CARD ── -->
+  <div class="chat-card">
+    <!-- topbar -->
+    <div class="chat-topbar">
+      <div class="status-dot"></div>
+      <span class="topbar-name">NOVA ORBIT</span>
+      <span class="topbar-sub">online · ready to help</span>
+    </div>
+
+    <!-- messages -->
+    <div id="chat-messages">
+      <div class="msg">
+        <div class="avatar avatar-nova">N</div>
+        <div class="bubble bubble-nova">
+          Hey friend! 👋 I'm <strong>NOVA Orbit</strong>. I can chat in English or isiZulu, help with careers, and keep things fun while we learn. What do you feel like talking about today?
+        </div>
+      </div>
+    </div>
+
+    <!-- input -->
+    <div class="input-area">
+      <textarea id="user-input" rows="1" placeholder="Ask your AI friend anything... careers, school, fun, or isiZulu ✨"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+      <button id="send-btn" onclick="sendMessage()" title="Send">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── STATS ── -->
+  <div class="stats-strip">
+    <div class="stat-card" data-accent="cyan">
+      <span class="stat-num" id="msg-count">0</span>
+      <span class="stat-label">Messages Sent</span>
+    </div>
+    <div class="stat-card" data-accent="gold">
+      <span class="stat-num">500+</span>
+      <span class="stat-label">Career Paths</span>
+    </div>
+    <div class="stat-card" data-accent="violet">
+      <span class="stat-num">∞</span>
+      <span class="stat-label">Possibilities</span>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="footer-line"></div>
+    <p class="footer-brand">Designed by <strong>Innovation Lab</strong></p>
+  </footer>
+
+</div><!-- /wrapper -->
+
+<script src="script.js"></script>
+</body>
+</html>
