@@ -304,7 +304,12 @@ async function callNova(userText) {
     if (resp.status === 401 || resp.status === 403) {
       throw new Error('Server OpenAI key is missing or invalid.');
     }
-    throw new Error(data?.error?.message || `OpenAI request failed (${resp.status}).`);
+    const serverError =
+      data?.error?.message ||
+      data?.error ||
+      data?.message ||
+      data?.details;
+    throw new Error(serverError || `OpenAI request failed (${resp.status}).`);
   }
 
   const reply = data?.choices?.[0]?.message?.content?.trim() || "Hmm, my brain glitched! Try again? 🤖";
